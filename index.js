@@ -26,6 +26,32 @@ app.get("/", (req, res) => {
   res.send("Bosh sahifa");
 });
 
+app.get("/register", (req, res, next) => {
+  db.query(`SELECT * FROM employes ORDER BY id ASC`, (err, result) => {
+    if (err) {
+      return res.status(400).send({
+        msg: err,
+      });
+    }
+    return res.send(result);
+  });
+});
+
+app.get("/register/:id", (req, res, next) => {
+  db.query(
+    `SELECT * FROM employes where id=$1`,
+    [req.params.id],
+    (err, result) => {
+      if (err) {
+        return res.status(400).send({
+          msg: err,
+        });
+      }
+      return res.send(result);
+    }
+  );
+});
+
 app.post("/register", userMiddleware.validateRegister, (req, res, next) => {
   db.query(
     `SELECT * FROM employes WHERE LOWER(login) = LOWER($1)`,
@@ -45,9 +71,9 @@ app.post("/register", userMiddleware.validateRegister, (req, res, next) => {
         //   } else {
         // has hashed pw => add to database
         db.query(
-          `INSERT INTO employes (id, firstName, lastName, middleName, login, password, role) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          `INSERT INTO employes (id, "firstName", "lastName", "middleName", "login", "password", "role") VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
           [
-            req.body.id,
+            Math.floor(Math.random() * 10000),
             req.body.firstName,
             req.body.lastName,
             req.body.middleName,
@@ -73,6 +99,50 @@ app.post("/register", userMiddleware.validateRegister, (req, res, next) => {
   );
 });
 
+app.put("/register/:id", userMiddleware.validateRegister, (req, res, next) => {
+  db.query(
+    `UPDATE employes SET "firstName"=$1, "lastName"=$2, "middleName"=$3, "login"=$4, "password"=$5, "role"=$6 WHERE "id" = $7 RETURNING *`,
+    [
+      req.body.firstName,
+      req.body.lastName,
+      req.body.middleName,
+      req.body.login,
+      req.body.password,
+      req.body.role,
+      req.params.id,
+    ],
+    (err, result) => {
+      if (err) {
+        return res.status(400).send({
+          msg: err,
+        });
+      }
+      return res.status(201).send({
+        msg: "Muvaffaqqiyatli o'zagrtitlidi!",
+      });
+    }
+  );
+});
+
+app.delete("/register/:id", (req, res) => {
+  db.query(
+    `DELETE FROM employes WHERE id = $1`,
+    [req.params.id],
+    (err, result) => {
+      if (err) {
+        return res.status(400).send({
+          message: "Xatolik yuz berdi",
+          msg: err,
+        });
+      } else {
+        return res.status(200).send({
+          msg: "Muvaffaqqiyatli o'chirildi!",
+        });
+      }
+    }
+  );
+});
+
 app.post("/login", (req, res, next) => {
   db.query(
     `SELECT * FROM employes WHERE login = $1`,
@@ -81,52 +151,50 @@ app.post("/login", (req, res, next) => {
       // user does not exists
       if (err) {
         return res.status(400).send({
+          message: "Xatolik yuz berdi",
           msg: err,
         });
-      }
-
-      if (!result.rows.length) {
-        console.log(result);
+      } else if (!result.rows.length) {
         return res.status(401).send({
           msg: "Login yoki parol notog'ri!",
         });
+      } else {
+        // bcrypt.compare(
+        //   req.body.password,
+        //   result.rows[0]["password"],
+        //   (bErr, bResult) => {
+        //     // wrong password
+        //     if (bErr) {
+        //       throw bErr;
+        //       return res.status(401).send({
+        //         msg: "Login yoki parol notog'ri!",
+        //       });
+        //     }
+
+        //     if (bResult) {
+        const token = jwt.sign(
+          {
+            fullName: result.rows.firstName + " " + result.rows.lastName,
+            role: result.rows.role,
+            userId: result.rows.id,
+          },
+          "secretKey",
+          {
+            expiresIn: "360s",
+          }
+        );
+        return res.status(200).send({
+          msg: "Tizimga kirildi!",
+          token,
+          // user: result[0],
+        });
+        // }
+        // return res.status(401).send({
+        //   msg: "Login yoki parol notog'ri!",
+        // });
+        // }
+        // );
       }
-
-      // bcrypt.compare(
-      //   req.body.password,
-      //   result.rows[0]["password"],
-      //   (bErr, bResult) => {
-      //     // wrong password
-      //     if (bErr) {
-      //       throw bErr;
-      //       return res.status(401).send({
-      //         msg: "Login yoki parol notog'ri!",
-      //       });
-      //     }
-
-      //     if (bResult) {
-      const token = jwt.sign(
-        {
-          fullName: result[0].firstName + " " + result[0].lastName,
-          role: result[0].role,
-          userId: result[0].id,
-        },
-        "secretKey",
-        {
-          expiresIn: "360s",
-        }
-      );
-      return res.status(200).send({
-        msg: "Tizimga kirildi!",
-        token,
-        // user: result[0],
-      });
-      // }
-      // return res.status(401).send({
-      //   msg: "Login yoki parol notog'ri!",
-      // });
-      // }
-      // );
     }
   );
 });
