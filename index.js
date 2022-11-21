@@ -172,11 +172,12 @@ app.post("/login", (req, res, next) => {
         //     }
 
         //     if (bResult) {
+        console.log(result);
         const token = jwt.sign(
           {
-            fullName: result.rows.firstName + " " + result.rows.lastName,
-            role: result.rows.role,
-            userId: result.rows.id,
+            fullName: result.rows[0].firstName + " " + result.rows[0].lastName,
+            role: result.rows[0].role,
+            userId: result.rows[0].id,
           },
           "secretKey",
           {
