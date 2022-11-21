@@ -2,8 +2,8 @@
 
 module.exports = {
   validateRegister: (req, res, next) => {
-    // username min length 3
-    if (!req.body.username || req.body.username.length < 3) {
+    // login min length 3
+    if (!req.body.login || req.body.login.length < 3) {
       return res.status(400).send({
         msg: "Login kamida 3 ta belgidan iborat bo'lishi kerak",
       });
